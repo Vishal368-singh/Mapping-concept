@@ -51,11 +51,22 @@ export default function ArcGISMap() {
     map.add(graphicsLayer);
 
     const cities = [
-      { name: "Ballia", lat: 25.788763, lon: 84.245925 },
-      { name: "Varanasi", lat: 25.3176, lon: 82.9739 },
-      { name: "Lucknow", lat: 26.8467, lon: 80.9462 },
-      { name: "Patna", lat: 25.5941, lon: 85.1376 },
-      { name: "Delhi", lat: 28.7041, lon: 77.1025 },
+      // to ensure the search links the city point to its district polygon.
+      { name: "Ballia", lat: 25.788763, lon: 84.245925, districtName: "Ballia District" },
+      { name: "Varanasi", lat: 25.3176, lon: 82.9739, districtName: "Varanasi District" },
+      { name: "Lucknow", lat: 26.8467, lon: 80.9462, districtName: "Lucknow District" },
+      { name: "Patna", lat: 25.5941, lon: 85.1376, districtName: "Patna District" },
+      { name: "Delhi", lat: 28.7041, lon: 77.1025, districtName: "Delhi District" },
+      { name: "Mumbai", lat: 19.0760, lon: 72.8777, districtName: "Mumbai District" },
+      { name: "Kolkata", lat: 22.5726, lon: 88.3639, districtName: "Kolkata District" },
+      { name: "Bengaluru", lat: 12.9716, lon: 77.5946, districtName: "Bengaluru Urban" },
+      { name: "Chennai", lat: 13.0827, lon: 80.2707, districtName: "Chennai District" },
+      { name: "Hyderabad", lat: 17.3850, lon: 78.4867, districtName: "Hyderabad District" },
+      { name: "Ahmedabad", lat: 23.0225, lon: 72.5714, districtName: "Ahmedabad District" },
+      { name: "Pune", lat: 18.5204, lon: 73.8567, districtName: "Pune District" },
+      { name: "Jaipur", lat: 26.9124, lon: 75.7873, districtName: "Jaipur District" },
+      { name: "Bhopal", lat: 23.2599, lon: 77.4126, districtName: "Bhopal District" },
+      { name: "Chandigarh", lat: 30.7333, lon: 76.7794, districtName: "Chandigarh District" }
     ];
     
     let balliaGraphic = null;
