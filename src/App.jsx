@@ -1,6 +1,6 @@
 import "./App.css";
-import Map from "./component/Map";
-
+import ArcGISMap from "./component/Map";
+import "@arcgis/core/assets/esri/themes/light/main.css";
 function App() {
   return (
     <div className="app-container">
@@ -8,7 +8,7 @@ function App() {
         <h1>Ballia District Map</h1>
       </header>
       <div className="map-container">
-        <Map />
+        <ArcGISMap />
       </div>
     </div>
   );
