@@ -1,166 +1,197 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Map from "@arcgis/core/Map";
 import MapView from "@arcgis/core/views/MapView";
-import GraphicsLayer from "@arcgis/core/layers/GraphicsLayer";
-import Graphic from "@arcgis/core/Graphic";
 import GeoJSONLayer from "@arcgis/core/layers/GeoJSONLayer";
 import Search from "@arcgis/core/widgets/Search";
 import Zoom from "@arcgis/core/widgets/Zoom";
 import "@arcgis/core/assets/esri/themes/light/main.css";
 
-// NOTE: loc.png and districts.geojson MUST be in the 'public' folder.
-
 export default function ArcGISMap() {
-  const mapRef = useRef(null);
+  const mapDivRef = useRef(null);
+  const mapInstance = useRef(null);
+  const viewInstance = useRef(null);
+  const originalBasemap = useRef(null);
+  const [layers, setLayers] = useState([]);
 
   useEffect(() => {
-    if (!mapRef.current) return;
-    let view;
+    if (!mapDivRef.current) return;
 
-    const map = new Map({
+    mapInstance.current = new Map({
       basemap: "streets-navigation-vector",
     });
+    originalBasemap.current = mapInstance.current.basemap;
 
-    view = new MapView({
-      container: mapRef.current,
-      map,
-      center: [84.5, 25.7],
-      zoom: 6,
+    const initialExtent = {
+      center: [78.9629, 20.5937], // Centered on India
+      zoom: 5,
+    };
+
+    viewInstance.current = new MapView({
+      container: mapDivRef.current,
+      map: mapInstance.current,
+      ...initialExtent,
     });
 
-    const geojsonLayer = new GeoJSONLayer({
-      url: "/districts.geojson",
+    const statesLayer = new GeoJSONLayer({
+      title: "Indian States",
+      // Make sure this URL points to your new GeoJSON data
+      url: "https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States",
+      // CHANGED: Use the correct field "NAME_1" for the popup title
+      popupTemplate: {
+        title: "{NAME_1}",
+        content: "State Boundary",
+      },
       renderer: {
         type: "simple",
         symbol: {
           type: "simple-fill",
-          color: [50, 150, 50, 0.3],
-          outline: { color: "#333", width: 2 },
+          color: [51, 133, 255, 0.3],
+          outline: { color: "#003366", width: 1.5 },
         },
       },
-      popupTemplate: {
-        title: "{DISTRICT}",
-        content: "District boundary",
-      },
     });
-    map.add(geojsonLayer);
+    mapInstance.current.add(statesLayer);
 
-    const graphicsLayer = new GraphicsLayer({
-      fields: [{ name: "name", alias: "Name", type: "string" }],
+    // This layer is optional if you only want to show states
+    const districtsLayer = new GeoJSONLayer({
+      title: "Districts",
+      url: "/districts.geojson", // Assumes you have this file locally
+      visible: false,
+      popupTemplate: { title: "{DISTRICT}", content: "District boundary" },
     });
-    map.add(graphicsLayer);
+    mapInstance.current.add(districtsLayer);
 
-    const cities = [
-      // to ensure the search links the city point to its district polygon.
-      { name: "Ballia", lat: 25.788763, lon: 84.245925, districtName: "Ballia District" },
-      { name: "Varanasi", lat: 25.3176, lon: 82.9739, districtName: "Varanasi District" },
-      { name: "Lucknow", lat: 26.8467, lon: 80.9462, districtName: "Lucknow District" },
-      { name: "Patna", lat: 25.5941, lon: 85.1376, districtName: "Patna District" },
-      { name: "Delhi", lat: 28.7041, lon: 77.1025, districtName: "Delhi District" },
-      { name: "Mumbai", lat: 19.0760, lon: 72.8777, districtName: "Mumbai District" },
-      { name: "Kolkata", lat: 22.5726, lon: 88.3639, districtName: "Kolkata District" },
-      { name: "Bengaluru", lat: 12.9716, lon: 77.5946, districtName: "Bengaluru Urban" },
-      { name: "Chennai", lat: 13.0827, lon: 80.2707, districtName: "Chennai District" },
-      { name: "Hyderabad", lat: 17.3850, lon: 78.4867, districtName: "Hyderabad District" },
-      { name: "Ahmedabad", lat: 23.0225, lon: 72.5714, districtName: "Ahmedabad District" },
-      { name: "Pune", lat: 18.5204, lon: 73.8567, districtName: "Pune District" },
-      { name: "Jaipur", lat: 26.9124, lon: 75.7873, districtName: "Jaipur District" },
-      { name: "Bhopal", lat: 23.2599, lon: 77.4126, districtName: "Bhopal District" },
-      { name: "Chandigarh", lat: 30.7333, lon: 76.7794, districtName: "Chandigarh District" }
-    ];
-    
-    let balliaGraphic = null;
-    
-    cities.forEach((city) => {
-      const cityGraphic = new Graphic({
-        geometry: {
-          type: "point",
-          latitude: city.lat,
-          longitude: city.lon,
-        },
-        symbol: {
-          type: "picture-marker",
-          url: "/loc.png",
-          width: "24px",
-          height: "24px",
-        },
-        attributes: { name: city.name },
-        popupTemplate: { title: "{name}" },
-      });
-      graphicsLayer.add(cityGraphic);
-
-      if (city.name === "Ballia") {
-        balliaGraphic = cityGraphic;
-      }
-    });
-
-    view.ui.remove("zoom");
-    const zoomWidget = new Zoom({ view });
-    view.ui.add(zoomWidget, "bottom-right");
+    viewInstance.current.ui.remove("zoom");
+    const zoomWidget = new Zoom({ view: viewInstance.current });
+    viewInstance.current.ui.add(zoomWidget, "bottom-right");
 
     const searchWidget = new Search({
-      view,
+      view: viewInstance.current,
       includeDefaultSources: false,
-      placeholder: "Search cities or districts",
-      groupingEnabled: false,
+      placeholder: "Search for a state",
+      popupEnabled: true,
       sources: [
         {
-          layer: graphicsLayer,
-          searchFields: ["name"],
-          displayField: "name",
-          name: "Cities",
+          layer: statesLayer,
+          // CHANGED: Use the correct field "NAME_1" for searching and display
+          searchFields: ["NAME_1"],
+          displayField: "NAME_1",
+          name: "Indian States",
         },
-        {
-          layer: geojsonLayer,
-          searchFields: ["DISTRICT"],
-          displayField: "DISTRICT",
-          name: "Districts",
-        },
+        // You can add the districts layer back here if you need to search it too
       ],
     });
-    view.ui.add(searchWidget, "top-right");
+    viewInstance.current.ui.add(searchWidget, "top-right");
 
-    view.when(() => {
-      if (balliaGraphic) {
-        graphicsLayer.definitionExpression = `name = 'Ballia'`;
-        geojsonLayer.definitionExpression = `1=0`;
-        view.goTo(balliaGraphic);
-      }
+    viewInstance.current.when(() => {
+      const operationalLayers = mapInstance.current.layers
+        .map((layer) => ({
+          id: layer.id,
+          title: layer.title,
+          visible: layer.visible,
+        }))
+        .toArray();
+      const basemapLayer = {
+        id: "basemap",
+        title: originalBasemap.current.title || "Basemap",
+        visible: !!mapInstance.current.basemap,
+      };
+      setLayers([...operationalLayers, basemapLayer].reverse());
     });
 
+    // --- Search Event Logic for Highlighting (no changes needed here) ---
+
     searchWidget.on("search-start", () => {
-      graphicsLayer.definitionExpression = null;
-      geojsonLayer.definitionExpression = null;
+      statesLayer.definitionExpression = null;
+      districtsLayer.definitionExpression = null;
     });
 
     searchWidget.on("select-result", (event) => {
-      const { feature, source } = event.result;
-      
-      if (source.name === "Cities") {
-        const cityName = feature.attributes.name;
-        graphicsLayer.definitionExpression = `name = '${cityName}'`;
-        // ** THE FIX IS HERE: Keep polygons visible when a city is selected **
-        geojsonLayer.definitionExpression = null; 
-      } 
-      else if (source.name === "Districts") {
-        const districtName = feature.attributes.DISTRICT;
-        graphicsLayer.definitionExpression = `1=0`;
-        geojsonLayer.definitionExpression = `DISTRICT = '${districtName}'`;
-      }
+      const { feature } = event.result;
+      if (!feature) return;
+
+      const selectedLayer = feature.layer;
+      const objectIdField = selectedLayer.objectIdField;
+      const objectId = feature.attributes[objectIdField];
+
+      selectedLayer.definitionExpression = `${objectIdField} = ${objectId}`;
+      selectedLayer.visible = true;
+
+      viewInstance.current.goTo(feature.geometry.extent.expand(1.5));
+
+      viewInstance.current.popup.open({
+        features: [feature],
+        location: feature.geometry.centroid,
+      });
+    });
+
+    searchWidget.on("search-clear", () => {
+      statesLayer.definitionExpression = null;
+      districtsLayer.definitionExpression = null;
+      viewInstance.current.popup.close();
+      viewInstance.current.goTo(initialExtent);
     });
 
     return () => {
-      if (view) {
-        view.destroy();
-      }
+      if (viewInstance.current) viewInstance.current.destroy();
     };
   }, []);
 
+  const handleVisibilityChange = (id, visible) => {
+    if (id === "basemap") {
+      mapInstance.current.basemap = visible ? originalBasemap.current : null;
+    } else {
+      const layer = mapInstance.current.findLayerById(id);
+      if (layer) layer.visible = visible;
+    }
+    setLayers((currentLayers) =>
+      currentLayers.map((l) => (l.id === id ? { ...l, visible } : l))
+    );
+  };
+
   return (
-    <div
-      ref={mapRef}
-      className="arcgis-map-container"
-      style={{ height: "100vh", width: "100%", position: "relative" }}
-    />
+    <>
+      <div
+        ref={mapDivRef}
+        style={{ height: "100vh", width: "100%", position: "relative" }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: "110px",
+          left: "15px",
+          backgroundColor: "white",
+          padding: "10px",
+          borderRadius: "8px",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+          zIndex: 10,
+          fontFamily: "sans-serif",
+          width: "150px",
+        }}
+      >
+        <h4 style={{ margin: "0 0 10px 0" }}>Layers</h4>
+        {layers.map((layer) => (
+          <div
+            key={layer.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginBottom: "5px",
+            }}
+          >
+            <input
+              type="checkbox"
+              id={layer.id}
+              checked={layer.visible}
+              onChange={(e) =>
+                handleVisibilityChange(layer.id, e.target.checked)
+              }
+              style={{ marginRight: "8px" }}
+            />
+            <label htmlFor={layer.id}>{layer.title}</label>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
