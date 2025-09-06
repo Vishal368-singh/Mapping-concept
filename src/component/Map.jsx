@@ -12,6 +12,9 @@ export default function ArcGISMap() {
   const viewInstance = useRef(null);
   const originalBasemap = useRef(null);
   const [layers, setLayers] = useState([]);
+  const [currentBasemap, setCurrentBasemap] = useState(
+    "streets-navigation-vector"
+  );
 
   useEffect(() => {
     if (!mapDivRef.current) return;
@@ -22,7 +25,7 @@ export default function ArcGISMap() {
     originalBasemap.current = mapInstance.current.basemap;
 
     const initialExtent = {
-      center: [78.9629, 20.5937], // Centered on India
+      center: [78.9629, 20.5937],
       zoom: 5,
     };
 
@@ -34,9 +37,7 @@ export default function ArcGISMap() {
 
     const statesLayer = new GeoJSONLayer({
       title: "Indian States",
-      // Make sure this URL points to your new GeoJSON data
       url: "https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States",
-      // CHANGED: Use the correct field "NAME_1" for the popup title
       popupTemplate: {
         title: "{NAME_1}",
         content: "State Boundary",
@@ -52,10 +53,9 @@ export default function ArcGISMap() {
     });
     mapInstance.current.add(statesLayer);
 
-    // This layer is optional if you only want to show states
     const districtsLayer = new GeoJSONLayer({
       title: "Districts",
-      url: "/districts.geojson", // Assumes you have this file locally
+      url: "/districts.geojson", // local file
       visible: false,
       popupTemplate: { title: "{DISTRICT}", content: "District boundary" },
     });
@@ -73,12 +73,10 @@ export default function ArcGISMap() {
       sources: [
         {
           layer: statesLayer,
-          // CHANGED: Use the correct field "NAME_1" for searching and display
           searchFields: ["NAME_1"],
           displayField: "NAME_1",
           name: "Indian States",
         },
-        // You can add the districts layer back here if you need to search it too
       ],
     });
     viewInstance.current.ui.add(searchWidget, "top-right");
@@ -91,6 +89,7 @@ export default function ArcGISMap() {
           visible: layer.visible,
         }))
         .toArray();
+
       const basemapLayer = {
         id: "basemap",
         title: originalBasemap.current.title || "Basemap",
@@ -99,26 +98,20 @@ export default function ArcGISMap() {
       setLayers([...operationalLayers, basemapLayer].reverse());
     });
 
-    // --- Search Event Logic for Highlighting (no changes needed here) ---
-
     searchWidget.on("search-start", () => {
       statesLayer.definitionExpression = null;
       districtsLayer.definitionExpression = null;
     });
 
     searchWidget.on("select-result", (event) => {
-      const { feature } = event.result;
+      const feature = event.result.feature;
       if (!feature) return;
-
       const selectedLayer = feature.layer;
       const objectIdField = selectedLayer.objectIdField;
       const objectId = feature.attributes[objectIdField];
-
       selectedLayer.definitionExpression = `${objectIdField} = ${objectId}`;
       selectedLayer.visible = true;
-
       viewInstance.current.goTo(feature.geometry.extent.expand(1.5));
-
       viewInstance.current.popup.open({
         features: [feature],
         location: feature.geometry.centroid,
@@ -144,21 +137,37 @@ export default function ArcGISMap() {
       const layer = mapInstance.current.findLayerById(id);
       if (layer) layer.visible = visible;
     }
-    setLayers((currentLayers) =>
-      currentLayers.map((l) => (l.id === id ? { ...l, visible } : l))
-    );
+    setLayers(layers.map((l) => (l.id === id ? { ...l, visible } : l)));
+  };
+
+  const switchBasemap = (basemapId) => {
+    if (mapInstance.current) {
+      mapInstance.current.basemap = basemapId;
+      setCurrentBasemap(basemapId);
+    }
   };
 
   return (
     <>
-      <div
-        ref={mapDivRef}
-        style={{ height: "100vh", width: "100%", position: "relative" }}
-      />
+      <div style={{ marginBottom: "10px" }}>
+        <label htmlFor="basemapSelect">Basemap: </label>
+        <select
+          id="basemapSelect"
+          onChange={(e) => switchBasemap(e.target.value)}
+          value={currentBasemap}
+        >
+          <option value="streets-navigation-vector">Streets</option>
+          <option value="topo-vector">Topographic</option>
+          <option value="imagery">Imagery</option>
+          <option value="gray-vector">Gray</option>
+          <option value="oceans">Oceans</option>
+        </select>
+      </div>
+
       <div
         style={{
           position: "absolute",
-          top: "110px",
+          top: "140px",
           left: "15px",
           backgroundColor: "white",
           padding: "10px",
@@ -192,6 +201,11 @@ export default function ArcGISMap() {
           </div>
         ))}
       </div>
+
+      <div
+        ref={mapDivRef}
+        style={{ height: "100vh", width: "100%", position: "relative" }}
+      />
     </>
   );
 }
